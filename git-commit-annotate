@@ -15,12 +15,12 @@ def read_blob(filename):
 class Commit():
 
     metadata = None
-    custom = None
+    annotation = None
     message = None
 
     def length(self):
-        if self.custom is not None:
-            return len(self.metadata) + 1 + len(self.custom) + 2 + len(self.message)
+        if self.annotation is not None:
+            return len(self.metadata) + 1 + len(self.annotation) + 2 + len(self.message)
         else:
             return len(self.metadata) + 2 + len(self.message)
 
@@ -38,8 +38,8 @@ class Commit():
         bs += self.metadata
         bs += b'\n'
 
-        if self.custom is not None:
-            bs += self.custom
+        if self.annotation is not None:
+            bs += self.annotation
             bs += b'\n'
 
         bs += b'\n'
@@ -69,15 +69,17 @@ class Commit():
         while self.metadata[b-1] != ord('\n'):
             b -= 1
 
-        custom = self.metadata[b:].decode('utf-8')
+        annotation = self.metadata[b:].decode('utf-8')
         if not any([
-                custom.startswith('committer'),
-                custom.startswith('author'),
-                custom.startswith('parent'),
-                custom.startswith('tree'),
+                annotation.startswith('committer'),
+                annotation.startswith('author'),
+                annotation.startswith('parent'),
+                annotation.startswith('tree'),
             ]):
-            self.custom = self.metadata[b:]
+            self.annotation = self.metadata[b:]
             self.metadata = self.metadata[0:b-1]
+
+        return self
 
 
 if __name__ == '__main__':
@@ -111,13 +113,13 @@ if __name__ == '__main__':
     old_hash = commit.sha()
     old_commit = Path('.git/objects/' + old_hash[0:2] + '/' + old_hash[2:])
 
-    if args.remove and commit.custom is None:
+    if args.remove and commit.annotation is None:
         sys.exit(0)
 
     if args.annotate:
-        commit.custom = args.annotate.encode('utf-8')
+        commit.annotation = args.annotate.encode('utf-8')
     else:
-        commit.custom = None
+        commit.annotation = None
 
     new_hash = commit.sha()
     commitname = Path('.git/objects/' + new_hash[0:2] + '/' + new_hash[2:])
