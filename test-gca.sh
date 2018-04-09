@@ -30,11 +30,11 @@ echo 'foo' > foo.txt
 git add foo.txt >> $logfile
 git commit -m 'Bar' >> $logfile
 
-git-commit-annotate --annotate 'Message' >> $logfile
+../git-commit-annotate --annotate 'Message' >> $logfile
 git status >> $logfile
 git cat-file commit HEAD | grep 'Message' >> $logfile
 
-git-commit-annotate --remove
+../git-commit-annotate --remove
 git status >> $logfile
 ! git cat-file commit HEAD | grep 'Message' >> $logfile
 
@@ -43,10 +43,10 @@ echo 'foo too' >> foo.txt
 git add foo.txt >> $logfile
 git commit -m 'Bar too' >> $logfile
 
-git-commit-annotate --annotate 'Message' >> $logfile
+../git-commit-annotate --annotate 'Message' >> $logfile
 git status >> $logfile
 git cat-file commit HEAD | grep 'Message' >> $logfile
 
-git-commit-annotate --remove
+../git-commit-annotate --remove
 git status >> $logfile
 ! git cat-file commit HEAD | grep 'Message' >> $logfile
