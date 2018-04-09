@@ -50,6 +50,11 @@ class Commit():
     def zip(self):
         return zlib.compress(self.bytes())
 
+    def path(self):
+        sha = self.sha()
+
+        return Path('.git/objects/' + sha[0:2] + '/' + sha[2:])
+
     def __init__(self, metadata, message, annotation=None):
         self.metadata = metadata
         self.annotation = annotation
@@ -116,23 +121,20 @@ if __name__ == '__main__':
     filename = '.git/objects/' + head[0:2] + '/' + head[2:]
 
     blob = read_blob(filename)
-    commit = Commit.from_blob(blob)
-    old_hash = commit.sha()
-    old_commit = Path('.git/objects/' + old_hash[0:2] + '/' + old_hash[2:])
+    old_commit = Commit.from_blob(blob)
 
-    if args.remove and commit.annotation is None:
+    if args.remove and old_commit.annotation is None:
         sys.exit(0)
 
+    new_commit = Commit(old_commit.metadata, old_commit.message)
     if args.annotate:
-        commit.annotation = args.annotate.encode('utf-8')
+        new_commit.annotation = args.annotate.encode('utf-8')
     else:
-        commit.annotation = None
+        new_commit.annotation = None
 
-    new_hash = commit.sha()
-    commitname = Path('.git/objects/' + new_hash[0:2] + '/' + new_hash[2:])
-    commitname.parent.mkdir(parents=True, exist_ok=True)
+    new_commit.path().parent.mkdir(parents=True, exist_ok=True)
 
-    with commitname.open('wb') as fh:
-        fh.write(commit.zip())
-        old_commit.unlink()
-        os.system('grep -rl {} | xargs sed -i "s/{}/{}/g" > /dev/null'.format(old_hash, old_hash, new_hash))
+    with new_commit.path().open('wb') as fh:
+        fh.write(new_commit.zip())
+        old_commit.path().unlink()
+        os.system('grep -rl {} | xargs sed -i "s/{}/{}/g" > /dev/null'.format(old_commit.sha(), old_commit.sha(), new_commit.sha()))
