@@ -50,7 +50,14 @@ class Commit():
     def zip(self):
         return zlib.compress(self.bytes())
 
-    def __init__(self, blob):
+    def __init__(self, metadata, message, annotation=None):
+        self.metadata = metadata
+        self.annotation = annotation
+        self.message = message
+
+    @staticmethod
+    def from_blob(blob):
+        self = Commit('', '')
         a = 0
         b = 0
         while blob[b] != 0:
@@ -109,7 +116,7 @@ if __name__ == '__main__':
     filename = '.git/objects/' + head[0:2] + '/' + head[2:]
 
     blob = read_blob(filename)
-    commit = Commit(blob)
+    commit = Commit.from_blob(blob)
     old_hash = commit.sha()
     old_commit = Path('.git/objects/' + old_hash[0:2] + '/' + old_hash[2:])
 
