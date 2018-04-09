@@ -27,6 +27,11 @@ children.
 
 To hide the nonce we use when mining git commit hashes, obviously.
 
+## Bugs
+
+Only works on Linux, because we shell out some commands to `sed -i` out of
+laziness.
+
 ## Thanks
 
 To Tom van der Woerdt, who came up with this in the first place. This project
