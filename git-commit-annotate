@@ -1,0 +1,129 @@
+#!/usr/bin/env python
+
+import argparse
+import hashlib
+from pathlib import Path
+import os
+import subprocess
+import zlib
+import sys
+
+def read_blob(filename):
+    with open(filename, 'br') as fh:
+        return zlib.decompress(fh.read())
+
+class Commit():
+
+    metadata = None
+    custom = None
+    message = None
+
+    def length(self):
+        if self.custom is not None:
+            return len(self.metadata) + 1 + len(self.custom) + 2 + len(self.message)
+        else:
+            return len(self.metadata) + 2 + len(self.message)
+
+    def top(self):
+        return b'commit %a\x00' % self.length()
+
+    def sha(self):
+        m = hashlib.sha1()
+        m.update(self.bytes())
+
+        return m.hexdigest()
+
+    def bytes(self):
+        bs = self.top()
+        bs += self.metadata
+        bs += b'\n'
+
+        if self.custom is not None:
+            bs += self.custom
+            bs += b'\n'
+
+        bs += b'\n'
+        bs += self.message
+
+        return bs
+
+    def zip(self):
+        return zlib.compress(self.bytes())
+
+    def __init__(self, blob):
+        a = 0
+        b = 0
+        while blob[b] != 0:
+            b += 1
+        b += 1
+        a = b
+
+        while blob[b] != ord('\n') or blob[b+1] != ord('\n'):
+            b += 1
+        self.metadata = blob[a:b]
+
+        b += 2
+        self.message = blob[b:]
+
+        b = len(self.metadata)
+        while self.metadata[b-1] != ord('\n'):
+            b -= 1
+
+        custom = self.metadata[b:].decode('utf-8')
+        if not any([
+                custom.startswith('committer'),
+                custom.startswith('author'),
+                custom.startswith('parent'),
+                custom.startswith('tree'),
+            ]):
+            self.custom = self.metadata[b:]
+            self.metadata = self.metadata[0:b-1]
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Annotate git commit objects.',
+        epilog=(
+            'The "annotate" and "remove" options are mutually exclusive.'
+            ' '
+            'Only HEAD can be annotated.'
+        ),
+    )
+    parser.add_argument(
+        '-a', '--annotate', help='Annotate commit object with message',
+        metavar='ANNOTATION',
+    )
+    parser.add_argument(
+        '-r', '--remove', help='Remove annotation from commit object', action='store_true',
+    )
+    args = parser.parse_args()
+
+    if args.annotate and args.remove:
+        parser.print_help()
+        sys.exit(1)
+
+    head = subprocess.check_output('git rev-parse HEAD', shell=True, encoding='UTF-8')
+    head = head[0 : len(head)-1]
+    filename = '.git/objects/' + head[0:2] + '/' + head[2:]
+
+    blob = read_blob(filename)
+    commit = Commit(blob)
+    old_hash = commit.sha()
+    old_commit = Path('.git/objects/' + old_hash[0:2] + '/' + old_hash[2:])
+
+    if args.remove and commit.custom is None:
+        sys.exit(0)
+
+    if args.annotate:
+        commit.custom = args.annotate.encode('utf-8')
+    else:
+        commit.custom = None
+
+    new_hash = commit.sha()
+    commitname = Path('.git/objects/' + new_hash[0:2] + '/' + new_hash[2:])
+    commitname.parent.mkdir(parents=True, exist_ok=True)
+
+    with commitname.open('wb') as fh:
+        fh.write(commit.zip())
+        old_commit.unlink()
+        os.system('grep -rl {} | xargs sed -i "s/{}/{}/g" > /dev/null'.format(old_hash, old_hash, new_hash))
