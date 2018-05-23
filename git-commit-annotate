@@ -50,10 +50,15 @@ class Commit():
     def zip(self):
         return zlib.compress(self.bytes())
 
-    def path(self):
+    def path(self, top_level=None):
         sha = self.sha()
 
-        return Path('.git/objects/' + sha[0:2] + '/' + sha[2:])
+        relative = '.git/objects/' + sha[0:2] + '/' + sha[2:]
+
+        if top_level:
+            return Path(top_level + '/' + relative)
+        else:
+            return Path(relative)
 
     def __init__(self, metadata, message, annotation=None):
         self.metadata = metadata
@@ -120,7 +125,10 @@ if __name__ == '__main__':
     head = head[0 : len(head)-1]
     filename = '.git/objects/' + head[0:2] + '/' + head[2:]
 
-    blob = read_blob(filename)
+    top_level = subprocess.check_output('git rev-parse --show-toplevel', shell=True, encoding='UTF-8')
+    top_level = top_level[0 : len(top_level)-1]
+
+    blob = read_blob(top_level + '/' + filename)
     old_commit = Commit.from_blob(blob)
 
     if args.remove and old_commit.annotation is None:
@@ -132,9 +140,9 @@ if __name__ == '__main__':
     else:
         new_commit.annotation = None
 
-    new_commit.path().parent.mkdir(parents=True, exist_ok=True)
+    new_commit.path(top_level).parent.mkdir(parents=True, exist_ok=True)
 
-    with new_commit.path().open('wb') as fh:
+    with new_commit.path(top_level).open('wb') as fh:
         fh.write(new_commit.zip())
-        old_commit.path().unlink()
-        os.system('grep -rl {} | xargs sed -i "s/{}/{}/g" > /dev/null'.format(old_commit.sha(), old_commit.sha(), new_commit.sha()))
+        old_commit.path(top_level).unlink()
+        os.system('grep -rl {} {} | xargs sed -i "s/{}/{}/g" > /dev/null'.format(old_commit.sha(), top_level, old_commit.sha(), new_commit.sha()))

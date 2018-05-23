@@ -50,3 +50,20 @@ git cat-file commit HEAD | grep 'Message' >> $logfile
 ../git-commit-annotate --remove
 git status >> $logfile
 ! git cat-file commit HEAD | grep 'Message' >> $logfile
+
+cleanup
+
+git init 'test' >> $logfile
+mkdir 'test/nest' >> $logfile
+pushd 'test/nest' >> $logfile
+echo 'foo' > foo.txt
+git add foo.txt >> $logfile
+git commit -m 'Bar' >> $logfile
+
+../../git-commit-annotate --annotate 'Message' >> $logfile
+git status >> $logfile
+! git cat-file commit HEAD | grep 'Message' >> $logfile
+
+../../git-commit-annotate --remove
+git status >> $logfile
+! git cat-file commit HEAD | grep 'Message' >> $logfile
